@@ -1,6 +1,4 @@
-GLOBAL.setmetatable(env, { __index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end })
-
-local function Log(msg)
+function Log(msg)
     print(msg)
     if not GLOBAL and not GLOBAL.TheNet then return end
 
@@ -8,13 +6,13 @@ local function Log(msg)
 end
 
 local SLOT_DATA_LIST = {
-    { key = "BELLY", offset = 0.5 },
-    { key = "NECK", offset = 0.5 },
-    -- { key = "BACK", offset = 0.5 },
-    { key = "HANDS", offset = 0.5 },
-    { key = "HEAD", offset = 2 },
-    { key = "BODY", offset = 0.5 },
-    { key = "SHOES", offset = -0.3 },
+    { key = "BELLY", offsetY = 0.5 },
+    { key = "NECK", offsetY = 0.5 },
+    -- { key = "BACK", offsetY = 0.5 },
+    { key = "HANDS", offsetY = 0.5 },
+    { key = "HEAD", offsetY = 2.5 },
+    { key = "BODY", offsetY = 0.5 },
+    { key = "SHOES", offsetY = -0.3 },
 }
 
 -- 一些修复时以恢复血量为展示的物品
@@ -24,9 +22,14 @@ local HEALTH_PREFAB_LIST = {
     bernie_big = true,
 }
 
-local function PlayEffect(inst, item, position, offestY)
+local function PlayEffect(inst, item, offestY)
     local x, y, z = item.Transform:GetWorldPosition()
     local fxfire = SpawnPrefab("attackfx_handpillow_steelwool")
+
+    if not Materials then Log("找不到Materials") end
+
+    if offestY then y = y + offestY end
+
     fxfire.Transform:SetPosition(x, y, z)
     fxfire.Transform:SetScale(0.5, 0.5, 0.5)
 end
@@ -35,34 +38,30 @@ local function PlaySound(inst)
     if inst.SoundEmitter then inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool") end
 end
 
-local function CanRepairHealth(inst, item)
+local function CanRepairHealth(item)
     -- 白名单判断
     if not HEALTH_PREFAB_LIST[item.prefab] then return false end
 
     -- 存在health组件
-    if item.components.health then
-        if item.components.health:GetPercent() ~= 1 and not v.components.health:IsDead() then return true end
+    if item.components.health and item.components.health.DoDelta then
+        if not item.components.health:IsDead() then return true end
     end
 end
 
 local function IsArmor(item)
-    if item.components.armor then
-        if item.components.armor:GetPercent() < 1 then return true end
-    end
+    if item.components.armor and item.components.armor.Repair then return true end
 
     return false
 end
 
 local function IsCanFixByFuel(item)
-    if item.components.fueled and item.components.fueled.fueltype == FUELTYPE.USAGE then
-        if item.components.fueled:GetPercent() < 1 then return true end
-    end
+    if item.components.fueled and item.components.fueled.fueltype == FUELTYPE.USAGE and item.components.fueled.DoDelta then return true end
 
     return false
 end
 
 -- 修复装备
-local function TryRepair(inst, item)
+local function TryRepair(inst, item, offsetY)
     if not item then return false end
 
     local didRepair = false
@@ -73,37 +72,45 @@ local function TryRepair(inst, item)
 
     -- 修复护甲类装备
     if IsArmor(item) then
-        item.components.armor:Repair(10)
-        Log("armor修复: " .. showName .. tostring(item.components.armor:GetPercent()))
-        didRepair = true
+        if item.components.armor:GetPercent() < 0.99 then
+            Log("armor修复: " .. showName .. tostring(item.components.armor:GetPercent()))
+
+            item.components.armor:Repair(10)
+            didRepair = true
+        end
 
     -- 修复衣物（可通过修补工具修复的）
     elseif IsCanFixByFuel(item) then
-        item.components.fueled:DoDelta(40)
-        Log("fueled修复: " .. showName .. tostring(item.components.fueled:GetPercent()))
-        didRepair = true
+        if item.components.fueled:GetPercent() < 0.99 then
+            Log("fueled修复: " .. showName .. tostring(item.components.fueled:GetPercent()))
+
+            item.components.fueled:DoDelta(40)
+            didRepair = true
+        end
     elseif CanRepairHealth(item) then
-        item.components.health.DoDelta(1)
-        
+        if item.components.health:GetPercent() < 0.99 then
+            Log("health修复: " .. showName .. tostring(item.components.health:GetPercent()))
+
+            item.components.health.DoDelta(1)
+            didRepair = true
+        end
     elseif item.components.repairable then
         Log("repairable修复: " .. showName)
     else
         -- Log("不处理: " .. showName)
-        do
-        end
+        a = nil
     end
 
     if didRepair then
-        -- 播放特效
-
-        PlayEffect(inst, item)
+        -- 播放修复特效
+        PlayEffect(inst, item, offsetY)
         PlaySound(inst or ThePlayer)
     end
 
     return didRepair
 end
 
-function checkItemCanRepair(target)
+local function checkItemCanRepair(target)
     -- 确保实体有效且有prefab名称
     if not target or not target.prefab then return false end
 
@@ -117,7 +124,7 @@ function checkItemCanRepair(target)
 end
 
 -- 主函数：获取并打印第一个玩家附近的所有实体
-function GetEntitiesNearFirstPlayer(inst, range)
+local function GetEntitiesNearFirstPlayer(inst, range)
     if not GLOBAL then Log("找不到GLOBAL") end
     if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
     if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
@@ -159,15 +166,14 @@ function GetEntitiesNearFirstPlayer(inst, range)
                     -- end
 
                     -- Log("TryRepair ==> 1")
-                    TryRepair(nil, slotItem)
+                    TryRepair(nil, slotItem, eachItem.offsetY)
                 end
             end
         else
             -- TryRepair()
             -- Log("TryRepair ==> 2")
             -- TryRepair(nil, target)
-            do
-            end
+            a = nil
         end
     end
 end

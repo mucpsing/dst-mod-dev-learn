@@ -5,7 +5,7 @@
 ```bash
 
 DIR:dst-mod-lean                                            # 
-   |-- demo/                                                # 「demo」 正在编写的mods
+   |-- MyMods/                                              # 「demo」 正在编写的mods
    |-- dst-scripts-public/                                  # 「dst-scripts-public」
    |-- test/                                                # 「test」 实时测试文件夹
    |-- mode_refs/                                           # 「mode_refs」 从工坊下载的参考模组
