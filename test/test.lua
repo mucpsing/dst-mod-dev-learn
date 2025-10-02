@@ -61,7 +61,7 @@ local function IsCanFixByFuel(item)
 end
 
 -- 修复装备
-local function TryRepair(inst, item, offsetY)
+local function TryRepair(TheTarget, item, offsetY)
     if not item then return false end
 
     local didRepair = false
@@ -103,8 +103,8 @@ local function TryRepair(inst, item, offsetY)
 
     if didRepair then
         -- 播放修复特效
-        PlayEffect(inst, item, offsetY)
-        PlaySound(inst or ThePlayer)
+        PlayEffect(TheTarget, item, offsetY)
+        PlaySound(TheTarget or ThePlayer)
     end
 
     return didRepair
@@ -124,7 +124,7 @@ local function checkItemCanRepair(target)
 end
 
 -- 主函数：获取并打印第一个玩家附近的所有实体
-local function GetEntitiesNearFirstPlayer(inst, range)
+function GetItemToRepair(inst, range)
     if not GLOBAL then Log("找不到GLOBAL") end
     if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
     if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
@@ -139,17 +139,20 @@ local function GetEntitiesNearFirstPlayer(inst, range)
         return
     end
 
-    local targetPlayer = players[1]
+    -- [dev]
+    local TheTarget = inst or players[1]
 
     -- 3. 获取玩家位置并查找周围实体
-    local x, y, z = targetPlayer.Transform:GetWorldPosition()
-    local near_by_inst_entities = GLOBAL.TheSim:FindEntities(x, y, z, search_range)
+    local x, y, z = TheTarget.Transform:GetWorldPosition()
+    local searchItemList = GLOBAL.TheSim:FindEntities(x, y, z, search_range, { "player" })
+
+    local DO_NOTHING = false
 
     -- 4. 遍历并打印实体的prefab名称
-    for i, target in ipairs(near_by_inst_entities) do
+    for i, target in ipairs(searchItemList) do
+        -- 最基础的有效物品判断
         if not checkItemCanRepair(target) then
-            do
-            end
+            DO_NOTHING = true
 
         -- 这里使用处理人物身上的物品
         elseif target:HasTag("player") then
@@ -160,22 +163,17 @@ local function GetEntitiesNearFirstPlayer(inst, range)
                 if GLOBAL.EQUIPSLOTS[eachItem.key] then
                     slotItem = inv:GetEquippedItem(EQUIPSLOTS[eachItem.key])
 
-                    -- if slotItem and slotItem.GetDisplayName then
-                    --     show_name = slotItem:GetDisplayName()
-                    --     Log(eachItem.key .. "=>" .. show_name)
-                    -- end
-
-                    -- Log("TryRepair ==> 1")
-                    TryRepair(nil, slotItem, eachItem.offsetY)
+                    TryRepair(TheTarget, slotItem, eachItem.offsetY)
                 end
             end
         else
+            -- 附近物品，目前不考虑，仅维修玩家穿身上的
             -- TryRepair()
             -- Log("TryRepair ==> 2")
             -- TryRepair(nil, target)
-            a = nil
+            DO_NOTHING = true
         end
     end
 end
 
-GetEntitiesNearFirstPlayer()
+GetItemToRepair()
