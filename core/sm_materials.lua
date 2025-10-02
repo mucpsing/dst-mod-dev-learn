@@ -52,7 +52,15 @@ Materials = {
 }
 
 -- 材料验证函数
-function Materials:hasItem(prefab) return self.itemRange[prefab] ~= nil end
+function Materials:hasItem(item)
+    if Materials.itemRange[item.prefab] then
+        -- Log("SetAcceptTest1: " .. item.prefab)
+        return true
+    else
+        -- Log("SetAcceptTest2: " .. item.prefab)
+        return false
+    end
+end
 
 -- 获取线轴值
 function Materials:getXianZhouByItem(item)
