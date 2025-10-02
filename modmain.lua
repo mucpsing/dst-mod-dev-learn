@@ -59,6 +59,7 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
             if inst:HasTag("burnt") then
                 inst.components.named:SetName("缝纫机被烧毁，已经无法使用\n剩余线轴" .. inst.xianzhou)
                 IntervalTask:Cancel()
+                return false
             end
             -- 当前实体位置，可优化
             local dh = false
@@ -76,56 +77,5 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
 
     inst:AddComponent("trader")
     inst.components.trader:SetAcceptTest(CORE.SetAcceptTest)
-    -- inst.components.trader:SetAcceptTest(function(inst, item, giver)
-    --     Log("item.prefab: " .. item.prefab)
-
-    --     local owner = item.components.inventoryitem and item.components.inventoryitem.owner
-    --     local can_accept = false
-    --     if owner then
-    --         if inst.xianzhou and inst.xianzhou <= 6000 then
-    --             if Materials.hasItem(item) then
-    --                 -- 实例是否需要额外添加牛帽
-    --                 can_accept = true
-    --             else
-    --                 -- 不接收的物品打印提示信息
-    --                 local msg = Dialogues.getRejectMsg(owner.prefab)
-    --                 owner.components.talker:Say(msg)
-
-    --                 inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/close")
-    --                 inst.AnimState:PlayAnimation("hit")
-    --                 inst.AnimState:PushAnimation("idle", false)
-    --             end
-    --         else
-    --             owner.components.talker:Say("线轴已经足够。")
-    --         end
-    --     end
-    --     return can_accept
-    -- end)
-
     inst.components.trader.onaccept = CORE.Onaccept
-    -- inst.components.trader.onaccept = function(inst, giver, item)
-    --     local processed = false -- 是否最终接受这个物品
-
-    --     -- 基础条件检查
-    --     if not (inst.xianzhou and giver and giver:HasTag("player")) then return processed end
-
-    --     -- 计算给予堆叠物品的情况
-    --     -- local stackSize = item.components.stackable and item.components.stackable:StackSize() or 1
-
-    --     -- 当给予的是幸运金块，这里缝纫机会生成一台新的
-    --     if Materials.hasItem(item) then
-    --         local value = Materials.getXianZhouByItem(item)
-
-    --         inst.xianzhou = inst.xianzhou + value
-    --         processed = true
-    --     end
-
-    --     if processed then
-    --         -- 物品被接受后的反馈，声音，动画
-    --         inst.AnimState:PlayAnimation("close")
-    --         inst.SoundEmitter:KillSound("snd")
-    --         inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/stop")
-    --         inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/done")
-    --     end
-    -- end
 end)
