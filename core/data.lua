@@ -1,5 +1,30 @@
-Materials = {
-    itemRange = {
+local CPS_DATA = {
+    REJECT_LINES = {
+        willow = "把这个当线材用？还不如让我烧了！",
+        wolfgang = "沃尔夫冈认为这个不能作为线轴来用。",
+        wendy = "那只能让衣物比我的心更加千疮百孔。",
+        wx78 = "错误，补丁不兼容。",
+        wickerbottom = "亲爱的，我从来没见过用这个缝衣服的。",
+        woodie = "不行，这个甚至都不能修我的格子衫。",
+        waxwell = "我的西服怎么能容许被这种材料羞辱？",
+        wathgrithr = "这个材料无法为勇士们缝补战衣。",
+        webber = "我们觉得用这个修衣服会出大问题的。",
+        winona = "不行，添加用料这种事，一定要严之又严。",
+        warly = "啊，你会用番茄条蘸土豆酱吗？",
+        wortox = "哼，如果这是一场恶作剧，那么我可能会把这东西扔进去。",
+        wormwood = "嗖嗖不喜欢这个",
+        wurt = "浮浪噗，我很清醒，不会乱塞东西的。",
+        walter = "沃比的毛都比这东西适合缝纫。",
+        wanda = "我没时间在这里给材料试错，拿对的来！",
+        wirlywings = "唔姆，这个肯定不行，我还是有点缝纫知识的！",
+        daidai = "嗯，这个是绝对修不了玩偶和衣服的",
+        wathom = "材料，不正确。",
+        winky = "……我觉得还没有我们的体毛合适。",
+        wixie = "有这试材料的时间不如去打弹弓。",
+        default = "用这个来缝纫是不科学的。",
+    },
+
+    ITEM_XIANZHOU_RANGE = {
         -- 普通材料
         silk = { min = 7, max = 10 },
         beefalowool = { min = 12, max = 16 },
@@ -16,6 +41,7 @@ Materials = {
         winterhat = { min = 100, max = 100 },
         earmuffshat = { min = 80, max = 80 },
         monkey_smallhat = { min = 100, max = 100 },
+        beefalohat = { min = 500, max = 500 },
 
         -- 羽毛类
         malbatross_feathered_weave = { min = 200, max = 240 },
@@ -46,38 +72,7 @@ Materials = {
         trinket_22 = { min = 600, max = 700 },
         stinger = { min = 12, max = 18 },
     },
-
-    -- 特殊幸运金块在外部进行处理
-    -- lucky_goldnugget
 }
 
--- 材料验证函数
-function Materials:hasItem(item)
-    if Materials.itemRange[item.prefab] then
-        -- Log("SetAcceptTest1: " .. item.prefab)
-        return true
-    else
-        -- Log("SetAcceptTest2: " .. item.prefab)
-        return false
-    end
-end
-
--- 获取线轴值
-function Materials:getXianZhouByItem(item)
-    local xianzhou = 0
-    local stackSize = item.components.stackable and item.components.stackable:StackSize() or 1
-
-    if self.itemRange[item.prefab] then
-        local itemRange = self.itemRange[item.prefab]
-
-        if itemRange.min == itemRange.max then
-            -- 固定价值材料（如帽子）
-            xianzhou = math.floor(itemRange.min * (item.components.fueled and item.components.fueled:GetPercent() or 1))
-        else
-            -- 随机价值材料
-            xianzhou = math.random(itemRange.min, itemRange.max) * stackSize
-        end
-    end
-
-    return xianzhou
-end
+-- 加载到全局
+if CPS then CPS.DATA = CPS_DATA end

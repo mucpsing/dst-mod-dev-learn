@@ -19,8 +19,6 @@ local function PlayEffect(inst, item, offestY)
     local x, y, z = item.Transform:GetWorldPosition()
     local fxfire = SpawnPrefab("attackfx_handpillow_steelwool")
 
-    if not Materials then Log("找不到Materials") end
-
     if offestY then y = y + offestY end
 
     fxfire.Transform:SetPosition(x, y, z)
@@ -117,7 +115,7 @@ local function checkItemCanRepair(target)
 end
 
 -- 主函数：获取并打印第一个玩家附近的所有实体
-local function GetItemToRepair(inst, range)
+local function GetItemToRepair(inst, range, modConfig)
     if not GLOBAL then Log("找不到GLOBAL") end
     if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
     if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
@@ -172,40 +170,66 @@ local function GetItemToRepair(inst, range)
     return RepairCount
 end
 
-if CPS then
-    CORE = CPS.CORE
+-- 检查常见角色标签
+local characterTags = {
+    "wilson",
+    "willow",
+    "wolfgang",
+    "wendy",
+    "wx78",
+    "wickerbottom",
+    "woodie",
+    "wes",
+    "maxwell",
+    "webber",
+    "wathgrithr",
+    "waxwell",
+    "warly",
+    "wortox",
+    "wormwood",
+    "wurt",
+    "walter",
+    "wanda",
+}
 
-    CORE.CheckModel = function()
-        -- if Dialogues then Log("Dialogues 已加载123") end
-        -- if Materials then Log("Materials 已加载123") end
-        do
+local function getCharacterByTag(target)
+    for _, tag in ipairs(characterTags) do
+        if target:HasTag(tag) then
+            return tag -- 返回具体角色名称
         end
     end
 
-    CORE.Log = function(msg)
-        print(msg)
-        if not GLOBAL and not GLOBAL.TheNet then return end
+    -- 默认返回
+    if target:HasTag("player") then
+        return target.prefab or "unknown_player" -- 未知玩家角色
+    else
+        return "non_player" -- 非玩家实体
+    end
+end
 
-        GLOBAL.TheNet:Announce("[cps dev]: " .. msg)
+if CPS then
+    CORE = CPS.CORE
+    DATA = CPS.DATA
+
+    local MAX_XIANZHOU = 6000
+
+    CORE.ModCheck = function()
+        if not DATA or not DATA.ITEM_XIANZHOU_RANGE then Log("加载DATA失败") end
     end
 
-    CORE.Test = function(inst)
+    CORE.Main = function(inst)
         if not GLOBAL and not GLOBAL.TheNet then return end
 
         if inst.xianzhou <= 0 then return end
 
-        -- if GLOBAL.Action and AddAction and (AddComponentAction or GLOBAL.AddComponentAction) then
-        --     Log("可以添加动作")
-        --     AddActionXIANZHOU()
-        -- end
-
         -- 添加可交互组件（如果尚未添加）
+        -- 旧版或者未来改版兼容
         if not inst.components.inspectable then
             inst:AddComponent("inspectable")
             Log("需要添加交互组件")
         end
 
-        CORE.CheckModel()
+        CORE.ModCheck()
 
         local old_xianzhou = inst.xianzhou
         local each_xianzhou_time = 10
@@ -241,15 +265,54 @@ if CPS then
     end
 
     CORE.SetAcceptTest = function(inst, item, giver)
-        -- return Materials.hasItem(item)
-        if Materials.itemRange[item.prefab] then
-            Log("SetAcceptTest1: " .. item.prefab)
-            return true
-        else
-            Log("SetAcceptTest2: " .. item.prefab)
-            return false
+        local canAccept = true
+
+        if not giver:HasTag("player") then canAccept = false end
+
+        if not inst.xianzhou then canAccept = false end
+
+        if inst.xianzhou >= MAX_XIANZHOU then canAccept = false end
+
+        if not DATA.ITEM_XIANZHOU_RANGE[item.prefab] then canAccept = false end
+
+        -- 不支持的物品，人物吐槽
+        if not canAccept then
+            if giver.components.talker then
+                local msg = DATA.REJECT_LINES[giver.prefab] or DATA.REJECT_LINES["default"] or "......"
+                giver.components.talker:Say(msg)
+            end
         end
+        return canAccept
     end
 
-    CORE.Onaccept = function(inst, giver, item) Log("Onaccept: " .. item.prefab) end
+    CORE.Onaccept = function(inst, giver, item)
+        local xianzhou = 0
+        local stackSize = item.components.stackable and item.components.stackable:StackSize() or 1
+        local itemRange = DATA.ITEM_XIANZHOU_RANGE[item.prefab]
+
+        if itemRange.min == itemRange.max then
+            -- 固定价值材料（如帽子）
+            xianzhou = math.floor(itemRange.min * (item.components.fueled and item.components.fueled:GetPercent() or 1))
+        else
+            -- 随机价值材料
+            xianzhou = math.random(itemRange.min, itemRange.max) * stackSize
+        end
+
+        -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
+        inst.xianzhou = inst.xianzhou + xianzhou
+    end
+
+    CORE.OnSave = function(inst, data)
+        if inst.xianzhou then data.xianzhou = inst.xianzhou end
+        if inst:HasTag("burnt") or (inst.components.burnable ~= nil and inst.components.burnable:IsBurning()) then data.burnt = true end
+    end
+
+    CORE.OnLoad = function(inst, data)
+        if data ~= nil then
+            if data.xianzhou and inst.xianzhou then inst.xianzhou = data.xianzhou end
+            if data.burnt then inst.components.burnable.onburnt(inst) end
+        end
+    end
+else
+    Log("无法找到CPS")
 end
