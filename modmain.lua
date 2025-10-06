@@ -103,3 +103,8 @@ local function ChangeSortKey(recipe_name, recipe_reference, filter, after)
     end
 end
 ChangeSortKey("sewingmachine", "sewing_kit", "CLOTHING", true)
+--胡须可交易
+AddPrefabPostInit("stinger", function(inst)
+    if not TheWorld.ismastersim then return inst end
+    inst:AddComponent("tradable")
+end)

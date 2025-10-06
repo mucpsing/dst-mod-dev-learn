@@ -29,6 +29,22 @@ local function PlaySound(inst)
     if inst.SoundEmitter then inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool") end
 end
 
+local function EffectOnClose(inst)
+    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/close")
+    inst.AnimState:PlayAnimation("hit")
+    inst.AnimState:PushAnimation("idle", false)
+end
+
+local function EffectOnRepairStart(inst)
+    inst.AnimState:PushAnimation("active_loop", true)
+    inst.SoundEmitter:KillSound("snd")
+    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", "snd")
+end
+local function EffectOnRepairStop(inst)
+    inst.AnimState:PushAnimation("active_loop", true)
+    inst.SoundEmitter:KillSound("snd")
+    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", "snd")
+end
 local function CanRepairHealth(item)
     -- 白名单判断
     if not HEALTH_PREFAB_LIST[item.prefab] then return false end
@@ -170,41 +186,23 @@ local function GetItemToRepair(inst, range, modConfig)
     return RepairCount
 end
 
--- 检查常见角色标签
-local characterTags = {
-    "wilson",
-    "willow",
-    "wolfgang",
-    "wendy",
-    "wx78",
-    "wickerbottom",
-    "woodie",
-    "wes",
-    "maxwell",
-    "webber",
-    "wathgrithr",
-    "waxwell",
-    "warly",
-    "wortox",
-    "wormwood",
-    "wurt",
-    "walter",
-    "wanda",
-}
+local function Test(inst)
+    Log("尝试停止声音")
+    -- 动画
+    inst.AnimState:PushAnimation("active_loop") --
 
-local function getCharacterByTag(target)
-    for _, tag in ipairs(characterTags) do
-        if target:HasTag(tag) then
-            return tag -- 返回具体角色名称
-        end
-    end
+    -- inst.AnimState:PlayAnimation("idle")
+    -- inst.AnimState:PlayAnimation("hit") -- 实体震动以下，可以用作被锤子敲击，或者打开关闭后的动效
 
-    -- 默认返回
-    if target:HasTag("player") then
-        return target.prefab or "unknown_player" -- 未知玩家角色
-    else
-        return "non_player" -- 非玩家实体
-    end
+    -- inst.AnimState:PlayAnimation("open") -- 整个缝纫机头部打开
+    -- inst.AnimState:PlayAnimation("close") -- 缝纫机头部关闭还原
+
+    -- 声音
+    -- inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool") -- 裁缝的声音
+
+    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP")
+    -- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/stop")
+    -- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/done")
 end
 
 if CPS then
@@ -243,6 +241,8 @@ if CPS then
             inst.xianzhou = inst.xianzhou - need_xianzhou * RepairCount
             inst.components.named:SetName("缝纫机\n线轴" .. inst.xianzhou)
         end
+
+        Test(inst)
     end
 
     CORE.OnHammered = function(inst, worker)
@@ -282,6 +282,31 @@ if CPS then
                 giver.components.talker:Say(msg)
             end
         end
+
+        local xianzhou = 0
+
+        -- 堆叠物品放在处理
+        if item.components.stackable then
+            local stackSize = item.components.stackable:StackSize()
+            Log("物品可堆叠" .. stackSize)
+
+            local itemRange = DATA.ITEM_XIANZHOU_RANGE[item.prefab]
+            if itemRange.min == itemRange.max then
+                Log("1")
+                xianzhou = math.floor(itemRange.min * (item.components.fueled and item.components.fueled:GetPercent() or 1))
+            else
+                -- 随机价值材料
+                Log("2")
+                xianzhou = math.random(itemRange.min, itemRange.max) * stackSize
+            end
+
+            -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
+            if inst.xianzhou >= MAX_XIANZHOU then return false end
+            inst.xianzhou = inst.xianzhou + xianzhou
+            EffectOnClose(inst)
+            item:Remove()
+            return false
+        end
         return canAccept
     end
 
@@ -300,6 +325,7 @@ if CPS then
 
         -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
         inst.xianzhou = inst.xianzhou + xianzhou
+        EffectOnClose(inst)
     end
 
     CORE.OnSave = function(inst, data)
