@@ -1,7 +1,7 @@
 local SLOT_DATA_LIST = {
     { key = "BELLY", offsetY = 0.5 },
     { key = "NECK", offsetY = 0.5 },
-    -- { key = "BACK", offsetY = 0.5 },
+    { key = "BACK", offsetY = 0.5 },
     { key = "HANDS", offsetY = 0.5 },
     { key = "HEAD", offsetY = 2.5 },
     { key = "BODY", offsetY = 0.5 },
@@ -14,6 +14,37 @@ local HEALTH_PREFAB_LIST = {
     bernie_active = true,
     bernie_big = true,
 }
+-- ######################################### 特效管理 #########################################
+
+-- 裁缝中的特效
+-- inst.AnimState:PushAnimation("active_loop") -- 裁缝动作
+-- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", snd) -- 裁缝的声音
+-- inst.SoundEmitter:KillSound("snd")
+
+-- inst.SoundEmitter:KillAllSounds()
+-- 默认静止状态
+-- inst.AnimState:PlayAnimation("idle") -- 待机缝纫机
+
+-- 被锤子敲击或者刚使用完
+-- inst.AnimState:PlayAnimation("hit") -- 实体震动以下，可以用作被锤子敲击，或者打开关闭后的动效
+
+-- 打开头部容器
+-- inst.AnimState:PlayAnimation("open") -- 整个缝纫机头部打开
+-- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/open")
+
+-- 关闭头部容器
+-- inst.AnimState:PlayAnimation("close") -- 缝纫机头部关闭还原
+-- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/close")
+
+-- 修补装备
+-- inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool")  -- 修补装备时的声效
+
+-- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/stop")
+-- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/done")
+
+-- Log("mod配置: " .. config.REPAIR_RANGE)
+
+-- if inst.SoundEmitter.PlayingSound then inst.SoundEmitter:PlayingSound() end
 
 local function PlayEffect(inst, item, offestY)
     local x, y, z = item.Transform:GetWorldPosition()
@@ -23,28 +54,39 @@ local function PlayEffect(inst, item, offestY)
 
     fxfire.Transform:SetPosition(x, y, z)
     fxfire.Transform:SetScale(0.5, 0.5, 0.5)
+    inst.AnimState:PushAnimation("active_loop", false)
 end
 
 local function PlaySound(inst)
-    if inst.SoundEmitter then inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool") end
-end
-
-local function EffectOnClose(inst)
-    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/close")
-    inst.AnimState:PlayAnimation("hit")
-    inst.AnimState:PushAnimation("idle", false)
+    if inst.SoundEmitter then
+        inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool")
+        inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", "start_repair")
+    end
 end
 
 local function EffectOnRepairStart(inst)
-    inst.AnimState:PushAnimation("active_loop", true)
-    inst.SoundEmitter:KillSound("snd")
-    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", "snd")
+    inst.AnimState:PushAnimation("active_loop")
+    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", "start_repair")
 end
 local function EffectOnRepairStop(inst)
-    inst.AnimState:PushAnimation("active_loop", true)
-    inst.SoundEmitter:KillSound("snd")
-    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP", "snd")
+    inst.AnimState:PushAnimation("idle", false) -- 待机缝纫机
+    inst.SoundEmitter:KillSound("start_repair")
 end
+
+local function EffectOnItemAccept(inst)
+    -- inst.AnimState:PlayAnimation("hit") -- 实体震动以下，可以用作被锤子敲击，或者打开关闭后的动效
+    inst.AnimState:PlayAnimation("open")
+    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/open")
+
+    inst:DoTaskInTime(0.5, function(inst)
+        inst.AnimState:PlayAnimation("close")
+        inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/close")
+        inst.AnimState:PushAnimation("idle", false)
+    end)
+end
+
+-- ######################################### 特效管理 #########################################
+
 local function CanRepairHealth(item)
     -- 白名单判断
     if not HEALTH_PREFAB_LIST[item.prefab] then return false end
@@ -67,8 +109,14 @@ local function IsCanFixByFuel(item)
     return false
 end
 
+local function IsContainer(item)
+    if slotItem and slotItem.components and slotItem.components.container then return true end
+
+    return false
+end
+
 -- 修复装备
-local function TryRepair(TheTarget, item, offsetY)
+local function TryRepair(inst, TheTarget, item, offsetY)
     if not item then return false end
 
     local didRepair = false
@@ -112,9 +160,29 @@ local function TryRepair(TheTarget, item, offsetY)
         -- 播放修复特效
         PlayEffect(TheTarget, item, offsetY)
         PlaySound(TheTarget or ThePlayer)
+
+        EffectOnRepairStart(inst)
     end
 
     return didRepair
+end
+
+local function RepairInContainer(inst, TheTarget, item, offsetY)
+    local RepairCount = 0
+    local container = item.components.container
+    if container.GetNumSlots then
+        for i = 1, container:GetNumSlots() do
+            local eachItem = container:GetItemInSlot(i)
+
+            -- eachItem可能是空的
+            if eachItem and eachItem.GetDisplayName then
+                -- Log(eachItem.prefab .. ": " .. eachItem:GetDisplayName())
+                if TryRepair(inst, TheTarget, eachItem, offsetY) then RepairCount = RepairCount + 1 end
+            end
+        end
+    end
+
+    return RepairCount
 end
 
 local function checkItemCanRepair(target)
@@ -131,13 +199,13 @@ local function checkItemCanRepair(target)
 end
 
 -- 主函数：获取并打印第一个玩家附近的所有实体
-local function GetItemToRepair(inst, range, modConfig)
+local function GetItemToRepair(inst, modConfig)
     if not GLOBAL then Log("找不到GLOBAL") end
     if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
     if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
 
     -- 1. 设置搜索范围
-    local search_range = 3.33 * (range or 1)
+    local search_range = 3.33 * modConfig.REPAIR_RANGE or 1
 
     -- 2. 安全地获取第一个玩家
     local players = GLOBAL.ThePlayer and { GLOBAL.ThePlayer } or GLOBAL.AllPlayers
@@ -151,10 +219,12 @@ local function GetItemToRepair(inst, range, modConfig)
 
     -- 3. 获取玩家位置并查找周围实体
     local x, y, z = TheTarget.Transform:GetWorldPosition()
+    -- local searchItemList = GLOBAL.TheSim:FindEntities(x, y, z, search_range)
     local searchItemList = GLOBAL.TheSim:FindEntities(x, y, z, search_range, { "player" })
 
     local DO_NOTHING = false
     local RepairCount = 0
+    local BodyOffsetY = 0.5
 
     -- 4. 遍历并打印实体的prefab名称
     for i, target in ipairs(searchItemList) do
@@ -162,23 +232,37 @@ local function GetItemToRepair(inst, range, modConfig)
         if not checkItemCanRepair(target) then
             DO_NOTHING = true
 
-        -- 这里使用处理人物身上的物品
-        elseif target:HasTag("player") then
+        -- 遍历玩家
+        elseif target:HasTag("player") and not target:HasTag("playerghost") then
             local inv = target.components.inventory
 
-            -- 修复已装备的衣物
+            -- 背包类在装备栏上的容器
             for k, eachItem in pairs(SLOT_DATA_LIST) do
                 if GLOBAL.EQUIPSLOTS[eachItem.key] then
                     slotItem = inv:GetEquippedItem(EQUIPSLOTS[eachItem.key])
 
-                    if TryRepair(TheTarget, slotItem, eachItem.offsetY) then RepairCount = RepairCount + 1 end
+                    -- 背包内物品遍历修复
+                    if eachItem.key == "BACK" and IsContainer(slotItem) then
+                        -- 进入背包修复
+                        RepairCount = RepairInContainer(inst, TheTarget, slotItem, eachItem.offsetY) + RepairCount
+                    else
+                        -- 装备栏
+                        if TryRepair(inst, TheTarget, slotItem, eachItem.offsetY) then RepairCount = RepairCount + 1 end
+                    end
+                end
+            end
+
+            -- 物品栏
+            for _slot, slotItem in pairs(target.components.inventory.itemslots) do
+                if slotItem and slotItem:IsValid() then
+                    if slotItem and slotItem.prefab and slotItem.GetDisplayName then
+                        -- Log("物品栏:" .. slotItem:GetDisplayName())
+                        if TryRepair(inst, TheTarget, slotItem, BodyOffsetY) then RepairCount = RepairCount + 1 end
+                    end
                 end
             end
         else
-            -- 附近物品，目前不考虑，仅维修玩家穿身上的
-            -- TryRepair()
-            -- Log("TryRepair ==> 2")
-            -- TryRepair(nil, target)
+            -- 周围的所有物品，包含玩家
             DO_NOTHING = true
         end
     end
@@ -186,23 +270,8 @@ local function GetItemToRepair(inst, range, modConfig)
     return RepairCount
 end
 
-local function Test(inst)
-    Log("尝试停止声音")
-    -- 动画
-    inst.AnimState:PushAnimation("active_loop") --
-
-    -- inst.AnimState:PlayAnimation("idle")
-    -- inst.AnimState:PlayAnimation("hit") -- 实体震动以下，可以用作被锤子敲击，或者打开关闭后的动效
-
-    -- inst.AnimState:PlayAnimation("open") -- 整个缝纫机头部打开
-    -- inst.AnimState:PlayAnimation("close") -- 缝纫机头部关闭还原
-
-    -- 声音
-    -- inst.SoundEmitter:PlaySound("yotr_2023/common/pillow_hit_steelwool") -- 裁缝的声音
-
-    inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/LP")
-    -- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/stop")
-    -- inst.SoundEmitter:PlaySound("yotb_2021/common/sewing_machine/done")
+local function Test(inst, modConfig)
+    Log("test1")
 end
 
 if CPS then
@@ -215,7 +284,9 @@ if CPS then
         if not DATA or not DATA.ITEM_XIANZHOU_RANGE then Log("加载DATA失败") end
     end
 
-    CORE.Main = function(inst)
+    CORE.Main = function(inst, modConfig)
+        CORE.ModCheck()
+
         if not GLOBAL and not GLOBAL.TheNet then return end
 
         if inst.xianzhou <= 0 then return end
@@ -227,12 +298,14 @@ if CPS then
             Log("需要添加交互组件")
         end
 
-        CORE.ModCheck()
-
         local old_xianzhou = inst.xianzhou
         local each_xianzhou_time = 10
-        local RepairCount = GetItemToRepair(inst, 2)
-        local need_xianzhou = 10 * RepairCount
+        local RepairCount = GetItemToRepair(inst, modConfig)
+
+        if not RepairCount then return EffectOnRepairStop(inst) end
+
+        
+        local need_xianzhou = modConfig.REPAIR_XIANZHOU * RepairCount
 
         -- 更新线轴
         if need_xianzhou >= inst.xianzhou then
@@ -242,7 +315,9 @@ if CPS then
             inst.components.named:SetName("缝纫机\n线轴" .. inst.xianzhou)
         end
 
-        Test(inst)
+        EffectOnRepairStop(inst)
+
+        if CPS.DEBUG then Test(inst, modConfig) end
     end
 
     CORE.OnHammered = function(inst, worker)
@@ -252,8 +327,7 @@ if CPS then
 
         inst.components.lootdropper:SpawnLootPrefab("goldnugget")
         inst.components.lootdropper:SpawnLootPrefab("silk")
-        inst.components.lootdropper:SpawnLootPrefab("silk")
-
+        -- inst.components.lootdropper:SpawnLootPrefab("silk")
         inst.components.lootdropper:DropLoot()
 
         local fx = SpawnPrefab("collapse_small")
@@ -288,25 +362,24 @@ if CPS then
         -- 堆叠物品放在处理
         if item.components.stackable then
             local stackSize = item.components.stackable:StackSize()
-            Log("物品可堆叠" .. stackSize)
-
             local itemRange = DATA.ITEM_XIANZHOU_RANGE[item.prefab]
             if itemRange.min == itemRange.max then
-                Log("1")
                 xianzhou = math.floor(itemRange.min * (item.components.fueled and item.components.fueled:GetPercent() or 1))
             else
                 -- 随机价值材料
-                Log("2")
                 xianzhou = math.random(itemRange.min, itemRange.max) * stackSize
             end
 
             -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
             if inst.xianzhou >= MAX_XIANZHOU then return false end
             inst.xianzhou = inst.xianzhou + xianzhou
-            EffectOnClose(inst)
+
             item:Remove()
+            EffectOnItemAccept(inst)
+
             return false
         end
+
         return canAccept
     end
 
@@ -325,7 +398,7 @@ if CPS then
 
         -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
         inst.xianzhou = inst.xianzhou + xianzhou
-        EffectOnClose(inst)
+        -- EffectOnItemAccept(inst)
     end
 
     CORE.OnSave = function(inst, data)
@@ -339,6 +412,4 @@ if CPS then
             if data.burnt then inst.components.burnable.onburnt(inst) end
         end
     end
-else
-    Log("无法找到CPS")
 end

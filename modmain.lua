@@ -1,6 +1,6 @@
 GLOBAL.setmetatable(env, { __index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end })
 -- 要导入的模块
-CPS = { CORE = {}, DATA = {}, DEBUG = true }
+CPS = { CORE = {}, DATA = {}, DEBUG = false }
 
 local MOD_NAME = "cps_test"
 
@@ -37,6 +37,16 @@ AddRecipe2(
     { "CLOTHING" }
 )
 
+local CONFIG = {
+    REPAIR_ARMOR = GetModConfigData("REPAIR_ARMOR"),
+    REPAIR_CLOTHING = GetModConfigData("REPAIR_CLOTHING"),
+    REPAIR_UN_FUELED = GetModConfigData("REPAIR_UN_FUELED"),
+    REPAIR_RANGE = GetModConfigData("REPAIR_RANGE"),
+    REPAIR_XIANZHOU = GetModConfigData("REPAIR_XIANZHOU"),
+    REPAIR_INTERVAL_TIME = GetModConfigData("REPAIR_INTERVAL_TIME"),
+}
+
+-- 缝纫机添加修补功能
 AddPrefabPostInit("yotb_sewingmachine", function(inst)
     if not TheWorld.ismastersim then return end
     inst:RemoveComponent("container") -- 移除原版容器功能
@@ -49,7 +59,7 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
     -- 添加被锤子敲销毁
     inst.components.workable:SetOnFinishCallback(CPS.CORE.OnHammered)
 
-    local taskIntervalTime = 1 --sec
+    local taskIntervalTime = CONFIG.REPAIR_INTERVAL_TIME --sec
     local IntervalTask
 
     inst:DoTaskInTime(math.random() * 3, function()
@@ -65,7 +75,7 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
             end
 
             -- 修复主逻辑
-            CPS.CORE.Main(inst)
+            CPS.CORE.Main(inst, CONFIG)
         end)
     end)
 
@@ -102,9 +112,14 @@ local function ChangeSortKey(recipe_name, recipe_reference, filter, after)
         end
     end
 end
+
+-- 将缝纫机排序在修补工具后面
 ChangeSortKey("sewingmachine", "sewing_kit", "CLOTHING", true)
---胡须可交易
-AddPrefabPostInit("stinger", function(inst)
+
+AddPrefabPostInitAny(function(inst)
     if not TheWorld.ismastersim then return inst end
-    inst:AddComponent("tradable")
+
+    for itemPrefab, _ in pairs(CPS.DATA.ITEM_XIANZHOU_RANGE) do
+        if inst.prefab == itemPrefab and not inst.components.tradable then inst:AddComponent("tradable") end
+    end
 end)
