@@ -123,3 +123,12 @@ AddPrefabPostInitAny(function(inst)
         if inst.prefab == itemPrefab and not inst.components.tradable then inst:AddComponent("tradable") end
     end
 end)
+
+
+--[[
+c_give("stinger", 40)
+
+c_give("armorwagpunk")
+
+c_spawn("spider")
+]]
