@@ -99,7 +99,7 @@ local function IsCanFixByFuel(item)
 end
 
 local function IsContainer(item)
-    if slotItem and slotItem.components and slotItem.components.container then return true end
+    if item and item.components and item.components.container then return true end
 
     return false
 end
@@ -121,7 +121,7 @@ local function HasEnoughXianzhou(inst, conut, modConfig)
 end
 
 -- 修复装备
-local function TryRepair(inst, TheTarget, item, offsetY, modConfig)
+local function TryRepair(inst, thePlayer, item, offsetY, modConfig)
     if not item then return 0 end
 
     local RepairCount = 0
@@ -131,12 +131,15 @@ local function TryRepair(inst, TheTarget, item, offsetY, modConfig)
 
     -- 修复护甲类装备
     if IsArmor(item) then
+        -- Log("armor" .. showName)
         if item:HasTag("broken") and CPS.DATA.FORGEREPAIR_LIST[item.prefab] then
+            Log("armor1" .. showName)
+
             if item.components.forgerepairable and item.components.forgerepairable.Repair then
                 RepairCount = 15
                 if HasEnoughXianzhou(inst, RepairCount, modConfig) then
                     local repair_item = SpawnPrefab(CPS.DATA.FORGEREPAIR_LIST[item.prefab]) -- 创建修复材料
-                    item.components.forgerepairable:Repair(GLOBAL.ThePlayer, repair_item)
+                    item.components.forgerepairable:Repair(thePlayer, repair_item)
                     repair_item:Remove() -- 删除材料（可选，如果只是模拟）
                 end
             end
@@ -168,17 +171,17 @@ local function TryRepair(inst, TheTarget, item, offsetY, modConfig)
             end
         end
     elseif item.components.repairable then
-        Log("repairable修复: " .. showName)
+        -- Log("repairable修复: " .. showName)
         RepairCount = 0
     else
-        Log("不处理: " .. item.prefab)
+        -- Log("不处理: " .. showName)
         RepairCount = 0
     end
 
     if RepairCount > 0 then
         -- 播放修复特效
-        PlayEffect(TheTarget, item, offsetY)
-        PlaySound(TheTarget or ThePlayer)
+        PlayEffect(inst, item, offsetY)
+        PlaySound(inst)
 
         EffectOnRepairStart(inst)
     end
@@ -186,7 +189,7 @@ local function TryRepair(inst, TheTarget, item, offsetY, modConfig)
     return RepairCount
 end
 
-local function RepairInContainer(inst, TheTarget, item, offsetY, modConfig)
+local function RepairInContainer(inst, thePlayer, item, offsetY, modConfig)
     local RepairCount = 0
     local container = item.components.container
     if container.GetNumSlots then
@@ -194,7 +197,7 @@ local function RepairInContainer(inst, TheTarget, item, offsetY, modConfig)
             local eachItem = container:GetItemInSlot(i)
 
             -- eachItem可能是空的
-            if eachItem then RepairCount = TryRepair(inst, TheTarget, eachItem, offsetY, modConfig) + RepairCount end
+            if eachItem then RepairCount = TryRepair(inst, thePlayer, eachItem, offsetY, modConfig) + RepairCount end
         end
     end
 
@@ -251,18 +254,17 @@ local function GetItemToRepair(inst, modConfig)
         -- 遍历玩家
         elseif target:HasTag("player") and not target:HasTag("playerghost") then
             local inv = target.components.inventory
-            local thePlayer
-
+            local thePlayer = target
             -- 装备栏
             for k, eachSlotItem in pairs(CPS.DATA.SLOT_DATA_LIST) do
                 if GLOBAL.EQUIPSLOTS[eachSlotItem.key] then
                     local slotItem = inv:GetEquippedItem(EQUIPSLOTS[eachSlotItem.key])
                     if eachSlotItem.key == "BACK" and IsContainer(slotItem) then
                         -- 背包栏
-                        RepairCount = RepairInContainer(inst, TheTarget, slotItem, eachSlotItem.offsetY, modConfig) + RepairCount
+                        RepairCount = RepairInContainer(inst, thePlayer, slotItem, eachSlotItem.offsetY, modConfig) + RepairCount
                     else
                         -- 其他装备栏
-                        RepairCount = TryRepair(inst, TheTarget, slotItem, eachSlotItem.offsetY, modConfig) + RepairCount
+                        RepairCount = TryRepair(inst, thePlayer, slotItem, eachSlotItem.offsetY, modConfig) + RepairCount
                     end
                 end
             end
@@ -270,7 +272,7 @@ local function GetItemToRepair(inst, modConfig)
             -- 物品栏
             for _slot, slotItem in pairs(target.components.inventory.itemslots) do
                 if slotItem and slotItem:IsValid() then
-                    if slotItem and slotItem.prefab then RepairCount = TryRepair(inst, TheTarget, slotItem, BodyOffsetY, modConfig) + RepairCount end
+                    if slotItem and slotItem.prefab then RepairCount = TryRepair(inst, thePlayer, slotItem, BodyOffsetY, modConfig) + RepairCount end
                 end
             end
         else
@@ -360,10 +362,10 @@ if CPS then
             local stackSize = item.components.stackable:StackSize()
             local itemRange = DATA.ITEM_XIANZHOU_RANGE[item.prefab]
             if itemRange.min == itemRange.max then
-                xianzhou = math.floor(itemRange.min * (item.components.fueled and item.components.fueled:GetPercent() or 1))
+                need_xianzhou = math.floor(itemRange.min * (item.components.fueled and item.components.fueled:GetPercent() or 1))
             else
                 -- 随机价值材料
-                xianzhou = math.random(itemRange.min, itemRange.max) * stackSize
+                need_xianzhou = math.random(itemRange.min, itemRange.max) * stackSize
             end
 
             -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
