@@ -48,9 +48,8 @@ local function CheckFilesForChanges(watchFileList)
     return hasChanges
 end
 
-
 -- 初始化定时器
-function SetupReloadTimer(watchFileList, reloadInterval, mod_name)
+local function SetupReloadTimer(watchFileList, reloadInterval, mod_name)
     GLOBAL.TheWorld:DoTaskInTime(1, function()
         InitFileModTimes(watchFileList)
         GLOBAL.TheWorld:DoPeriodicTask(reloadInterval, function()
@@ -62,3 +61,5 @@ function SetupReloadTimer(watchFileList, reloadInterval, mod_name)
         end)
     end)
 end
+
+if CPS then CPS.UTILS.SetupReloadTimer = SetupReloadTimer end

@@ -1,12 +1,12 @@
 GLOBAL.setmetatable(env, { __index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end })
 -- 要导入的模块
-CPS = { CORE = {}, DATA = {}, DEBUG = false }
+CPS = { CORE = {}, DATA = {}, DEBUG = false, UTILS={} }
 
 local MOD_NAME = "cps_test"
 
-modimport("core/reload.lua")
-modimport("core/data.lua")
-modimport("core/main.lua")
+modimport("core/reload.lua") -- DEBUG
+modimport("core/const.lua") -- 常量依赖
+modimport("core/main.lua") -- 核心逻辑
 
 -- 创建全局监听
 AddSimPostInit(function()
@@ -15,13 +15,13 @@ AddSimPostInit(function()
         if not GLOBAL.TheWorld.ismastersim then return false end
 
         -- 需要实时监控的模块
-        local WATCH_FILE_LIST = { "modinfo.lua", "modmain.lua", "core/main.lua", "core/data.lua" }
+        local WATCH_FILE_LIST = { "modinfo.lua", "modmain.lua", "core/main.lua", "core/const.lua" }
 
         -- 监听文件的时间间隔
         local RELOAD_INTERVAL = 1
 
         -- 你的初始化代码可以安全地放在这里
-        SetupReloadTimer(WATCH_FILE_LIST, RELOAD_INTERVAL, MOD_NAME)
+        CPS.UTILS.SetupReloadTimer(WATCH_FILE_LIST, RELOAD_INTERVAL, MOD_NAME)
     else
         Log("TheWorld is not available or we are not on the master sim.")
     end
@@ -37,7 +37,7 @@ AddRecipe2(
     { "CLOTHING" }
 )
 
-local CONFIG = {
+local MOD_CONFIG = {
     REPAIR_ARMOR = GetModConfigData("REPAIR_ARMOR"),
     REPAIR_CLOTHING = GetModConfigData("REPAIR_CLOTHING"),
     REPAIR_UN_FUELED = GetModConfigData("REPAIR_UN_FUELED"),
@@ -45,6 +45,9 @@ local CONFIG = {
     REPAIR_XIANZHOU = GetModConfigData("REPAIR_XIANZHOU"),
     REPAIR_INTERVAL_TIME = GetModConfigData("REPAIR_INTERVAL_TIME"),
 }
+
+local INST_INFO = {}
+
 
 -- 缝纫机添加修补功能
 AddPrefabPostInit("yotb_sewingmachine", function(inst)
@@ -54,35 +57,45 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
     -- 修改名称
     inst:AddComponent("named")
     inst.xianzhou = 200 --初始233线轴
-    inst.components.named:SetName("缝纫机\n线轴" .. inst.xianzhou)
+
+    -- 添加可交互组件（如果尚未添加）旧版或者未来改版兼容
+    if not inst.components.inspectable then inst:AddComponent("inspectable") end
 
     -- 添加被锤子敲销毁
     inst.components.workable:SetOnFinishCallback(CPS.CORE.OnHammered)
 
-    local taskIntervalTime = CONFIG.REPAIR_INTERVAL_TIME --sec
-    local IntervalTask
+    local taskIntervalTime = MOD_CONFIG.REPAIR_INTERVAL_TIME --sec
+    local intervalTask
+    local x, y, z = inst.Transform:GetWorldPosition()
 
+    -- 记录原始位置
+    INST_INFO.x = x
+    INST_INFO.y = y
+    INST_INFO.z = z
+
+    -- 延时执行，多个缝纫机不会那么整齐
+    -- 确保GLOBAL、TheNet等组件加载
     inst:DoTaskInTime(math.random() * 3, function()
-        local postiton = { x = nil, y = nil, z = nil }
-        local x, y, z = inst.Transform:GetWorldPosition()
-
         -- 周期性任务
-        IntervalTask = inst:DoPeriodicTask(taskIntervalTime, function()
+        intervalTask = inst:DoPeriodicTask(taskIntervalTime, function()
             if inst:HasTag("burnt") then
                 inst.components.named:SetName("缝纫机被烧毁，已经无法使用\n剩余线轴" .. inst.xianzhou)
-                IntervalTask:Cancel()
+                intervalTask:Cancel()
                 return false
-            end
+            else
+                CPS.CORE.Loop(inst, MOD_CONFIG, INST_INFO)
 
-            -- 修复主逻辑
-            CPS.CORE.Main(inst, CONFIG)
+                if CPS.DEBUG then
+                    CPS.CORE.ModCheck()
+                    CPS.CORE.Test(inst, MOD_CONFIG, INST_INFO)
+                end
+            end
         end)
     end)
 
     inst:AddComponent("trader")
     inst.components.trader:SetAcceptTest(CPS.CORE.SetAcceptTest)
-    inst.components.trader.onaccept = CPS.CORE.Onaccept
-
+    inst.components.trader.onaccept = CPS.CORE.OnAccept
     inst.OnSave = CPS.CORE.OnSave
     inst.OnLoad = CPS.CORE.OnLoad
 end)
@@ -112,10 +125,10 @@ local function ChangeSortKey(recipe_name, recipe_reference, filter, after)
         end
     end
 end
-
 -- 将缝纫机排序在修补工具后面
 ChangeSortKey("sewingmachine", "sewing_kit", "CLOTHING", true)
 
+-- 在支持填充的物品上加入对应的xianzhou价值
 AddPrefabPostInitAny(function(inst)
     if not TheWorld.ismastersim then return inst end
 
@@ -123,7 +136,6 @@ AddPrefabPostInitAny(function(inst)
         if inst.prefab == itemPrefab and not inst.components.tradable then inst:AddComponent("tradable") end
     end
 end)
-
 
 --[[
 c_give("stinger", 40)

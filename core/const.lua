@@ -113,6 +113,15 @@ local FORGEREPAIR_LIST = {
 }
 
 -- ============================================================
+-- # 修复时的修复阈值
+-- ============================================================
+local REPAIR_VALUE = {
+    armor = 10,
+    fuel = 40,
+    health = 1,
+}
+
+-- ============================================================
 -- # 挂载到全局
 -- ============================================================
 if CPS then
@@ -123,5 +132,6 @@ if CPS then
         SLOT_DATA_LIST = SLOT_DATA_LIST,
         FORGEREPAIR_LIST = FORGEREPAIR_LIST,
         HEALTH_PREFAB_LIST = HEALTH_PREFAB_LIST,
+        REPAIR_VALUE = REPAIR_VALUE,
     }
 end

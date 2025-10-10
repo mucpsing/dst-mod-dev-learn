@@ -32,15 +32,15 @@
 
 -- if inst.SoundEmitter.PlayingSound then inst.SoundEmitter:PlayingSound() end
 
-local function PlayEffect(inst, item, offestY)
+local function PlayEffect(inst, item, offsetY)
     local x, y, z = item.Transform:GetWorldPosition()
     local fxfire = SpawnPrefab("attackfx_handpillow_steelwool")
 
-    if offestY then y = y + offestY end
+    if offsetY then y = y + offsetY end
 
     fxfire.Transform:SetPosition(x, y, z)
     fxfire.Transform:SetScale(0.5, 0.5, 0.5)
-    inst.AnimState:PushAnimation("active_loop", false)
+    -- inst.AnimState:PushAnimation("active_loop", false)
 end
 
 local function PlaySound(inst)
@@ -109,8 +109,8 @@ local function UpdateXianzhou(inst, need_xianzhou)
     inst.components.named:SetName("缝纫机\n线轴" .. inst.xianzhou)
 end
 
-local function HasEnoughXianzhou(inst, conut, modConfig)
-    local need_xianzhou = conut * modConfig.REPAIR_XIANZHOU
+local function HasEnoughXianzhou(inst, count, modConfig)
+    local need_xianzhou = count * modConfig.REPAIR_XIANZHOU
 
     if inst.xianzhou > need_xianzhou then
         UpdateXianzhou(inst, -need_xianzhou)
@@ -125,9 +125,7 @@ local function TryRepair(inst, thePlayer, item, offsetY, modConfig)
     if not item then return 0 end
 
     local RepairCount = 0
-
-    local showName = item.prefab
-    if item.GetDisplayName then showName = item:GetDisplayName() end
+    local showName = item.GetDisplayName and item:GetDisplayName() or item.prefab
 
     -- 修复护甲类装备
     if IsArmor(item) then
@@ -190,15 +188,17 @@ local function TryRepair(inst, thePlayer, item, offsetY, modConfig)
 end
 
 local function RepairInContainer(inst, thePlayer, item, offsetY, modConfig)
-    local RepairCount = 0
     local container = item.components.container
-    if container.GetNumSlots then
-        for i = 1, container:GetNumSlots() do
-            local eachItem = container:GetItemInSlot(i)
+    if not container or not container.GetNumSlots then return 0 end
 
-            -- eachItem可能是空的
-            if eachItem then RepairCount = TryRepair(inst, thePlayer, eachItem, offsetY, modConfig) + RepairCount end
-        end
+    local RepairCount = 0
+    for i = 1, container:GetNumSlots() do
+        local eachItem = container:GetItemInSlot(i)
+
+        -- eachItem可能是空的
+        if not eachItem then return RepairCount end
+
+        RepairCount = TryRepair(inst, thePlayer, eachItem, offsetY, modConfig) + RepairCount
     end
 
     return RepairCount
@@ -218,28 +218,19 @@ local function CheckItemCanRepair(item)
 end
 
 -- 主函数：获取并打印第一个玩家附近的所有实体
-local function GetItemToRepair(inst, modConfig)
-    if not GLOBAL then Log("找不到GLOBAL") end
-    if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
-    if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
+local function GetItemToRepair(inst, modConfig, instInfo)
+    if inst.xianzhou <= 0 then return end
 
     -- 1. 设置搜索范围
-    local search_range = 3.33 * modConfig.REPAIR_RANGE or 1
+    local search_range = modConfig.REPAIR_RANGE and 3.33 * modConfig.REPAIR_RANGE or 1
 
-    -- 2. 安全地获取第一个玩家
-    local players = GLOBAL.ThePlayer and { GLOBAL.ThePlayer } or GLOBAL.AllPlayers
-    if not players or #players == 0 then
-        Log("警告：未找到任何玩家。")
-        return
-    end
+    -- 2. 获取玩家位置并查找周围实体，暂时尝试从instInfo获取，性能优化
+    -- local x, y, z = inst.Transform:GetWorldPosition()
 
-    -- [dev]
-    local TheTarget = inst or players[1]
-
-    -- 3. 获取玩家位置并查找周围实体
-    local x, y, z = TheTarget.Transform:GetWorldPosition()
+    -- 3. 仅获取带player便签的物品，地上的忽略
+    local searchItemList = GLOBAL.TheSim:FindEntities(instInfo.x, instInfo.y, instInfo.z, search_range, { "player" })
+    -- local searchItemList = GLOBAL.TheSim:FindEntities(x, y, z, search_range, { "player" })
     -- local searchItemList = GLOBAL.TheSim:FindEntities(x, y, z, search_range)
-    local searchItemList = GLOBAL.TheSim:FindEntities(x, y, z, search_range, { "player" })
 
     local DO_NOTHING = false
     local BodyOffsetY = 0.5
@@ -285,6 +276,12 @@ end
 -- ============================================================
 -- # 主逻辑
 -- ============================================================
+local function ModCheck()
+    if not DATA or not DATA.ITEM_XIANZHOU_RANGE then Log("加载DATA失败") end
+    if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
+    if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
+end
+
 local function Test(inst, modConfig) Log("test1") end
 
 if CPS then
@@ -293,29 +290,10 @@ if CPS then
 
     local MAX_XIANZHOU = 8000
 
-    CORE.ModCheck = function()
-        if not DATA or not DATA.ITEM_XIANZHOU_RANGE then Log("加载DATA失败") end
-    end
-
-    CORE.Main = function(inst, modConfig)
-        CORE.ModCheck()
-
-        if not GLOBAL and not GLOBAL.TheNet then return end
-
-        if inst.xianzhou <= 0 then return end
-
-        -- 添加可交互组件（如果尚未添加）
-        -- 旧版或者未来改版兼容
-        if not inst.components.inspectable then
-            inst:AddComponent("inspectable")
-            Log("需要添加交互组件")
-        end
-
-        GetItemToRepair(inst, modConfig)
+    CORE.Loop = function(inst, modConfig, instInfo)
+        GetItemToRepair(inst, modConfig, instInfo)
 
         EffectOnRepairStop(inst)
-
-        if CPS.DEBUG then Test(inst, modConfig) end
     end
 
     CORE.OnHammered = function(inst, worker)
@@ -339,13 +317,14 @@ if CPS then
     CORE.SetAcceptTest = function(inst, item, giver)
         local canAccept = true
 
-        if not giver:HasTag("player") then canAccept = false end
-
-        if not inst.xianzhou then canAccept = false end
-
-        if inst.xianzhou >= MAX_XIANZHOU then canAccept = false end
-
-        if not DATA.ITEM_XIANZHOU_RANGE[item.prefab] then canAccept = false end
+        -- 合法性检查
+        if not giver or not giver:HasTag("player") then
+            canAccept = false
+        elseif not inst.xianzhou or inst.xianzhou >= MAX_XIANZHOU then
+            canAccept = false
+        elseif not DATA.ITEM_XIANZHOU_RANGE[item.prefab] then
+            canAccept = false
+        end
 
         -- 不支持的物品，人物吐槽
         if not canAccept then
@@ -353,6 +332,7 @@ if CPS then
                 local msg = DATA.REJECT_LINES[giver.prefab] or DATA.REJECT_LINES["default"] or "......"
                 giver.components.talker:Say(msg)
             end
+            return false
         end
 
         local need_xianzhou = 0
@@ -382,7 +362,7 @@ if CPS then
         return canAccept
     end
 
-    CORE.Onaccept = function(inst, giver, item)
+    CORE.OnAccept = function(inst, giver, item)
         local need_xianzhou = 0
         local stackSize = item.components.stackable and item.components.stackable:StackSize() or 1
         local itemRange = DATA.ITEM_XIANZHOU_RANGE[item.prefab]
@@ -396,7 +376,6 @@ if CPS then
         end
 
         -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
-
         UpdateXianzhou(inst, need_xianzhou)
     end
 
