@@ -1,3 +1,12 @@
+--[[
+ * @Author: CPS
+ * @email: 373704015@qq.com
+ * @Date: 
+ * @Last Modified by: CPS
+ * @Last Modified time: 2025-10-11 08:18:56.016080
+ * @Filename reload.lua
+ * @Description: DEBUG功能: 热重载、世界打印输出
+]] --
 function Log(msg)
     if not msg then return end
     if not GLOBAL and not GLOBAL.TheNet then return end

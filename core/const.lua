@@ -1,3 +1,66 @@
+--[[
+ * @Author: CPS
+ * @email: 373704015@qq.com
+ * @Date: 2025-10-11 08:19:15.040248
+ * @Last Modified by: CPS
+ * @Last Modified time: 2025-10-11 08:18:56.016080
+ * @Filename const.lua
+ * @Description: 常量管理列表
+]]
+--
+
+-- ============================================================
+-- # 物品填充时的线轴
+-- ============================================================
+local ITEM_XIANZHOU_RANGE = {
+    -- 普通材料
+    silk = { min = 7, max = 10 }, -- 丝绸
+    beefalowool = { min = 12, max = 16 }, -- 牛毛
+    steelwool = { min = 85, max = 110 }, -- 钢毛
+    beardhair = { min = 12, max = 16 }, -- 胡子毛
+    tinybobbin = { min = 24, max = 36 }, -- 小线轴
+    manrabbit_tail = { min = 20, max = 30 }, -- 兔人尾巴
+    sewing_tape = { min = 40, max = 50 }, -- 缝纫带
+    cattenball = { min = 120, max = 180 }, -- 猫球
+    furtuft = { min = 20, max = 30 }, -- 毛簇
+
+    -- 帽子类 (拥有耐久度的帽子，大小设置一致，这样后期计算会尝试根据耐久度进行
+    walrushat = { min = 800, max = 800 }, -- 海象帽
+    winterhat = { min = 100, max = 100 }, -- 冬帽
+    earmuffshat = { min = 80, max = 80 }, -- 耳罩帽
+    monkey_smallhat = { min = 100, max = 100 }, -- 小猴帽
+    beefalohat = { min = 500, max = 500 }, -- 牛毛帽
+
+    -- 羽毛类
+    malbatross_feathered_weave = { min = 200, max = 240 }, -- 邪天翁羽毛织品
+    malbatross_feather = { min = 30, max = 40 }, -- 邪天翁羽毛
+    goose_feather = { min = 30, max = 40 }, -- 鹅羽毛
+    feather_canary = { min = 20, max = 30 }, -- 金丝雀羽毛
+    feather_catbird = { min = 20, max = 30 }, -- 猫鸟羽毛
+    feather_chaffinch = { min = 20, max = 30 }, -- 苍头燕雀羽毛
+    feather_crow = { min = 10, max = 20 }, -- 乌鸦羽毛
+    feather_robin = { min = 10, max = 20 }, -- 知更鸟羽毛
+    feather_robin_winter = { min = 10, max = 20 }, -- 冬知更鸟羽毛
+
+    -- 植物类
+    cutreeds = { min = 3, max = 5 }, -- 割下的芦苇
+    palmleaf = { min = 12, max = 16 }, -- 棕榈叶
+
+    -- 怪物掉落
+    tentaclespots = { min = 70, max = 80 }, -- 触手斑点
+    slurper_pelt = { min = 30, max = 45 }, -- 啜食者毛皮
+    coontail = { min = 24, max = 36 }, -- 浣熊尾巴
+    snakeskin = { min = 24, max = 36 }, -- 蛇皮
+
+    -- 高级材料
+    voidcloth = { min = 100, max = 120 }, -- 虚空布
+    fabric = { min = 40, max = 50 }, -- 布料
+
+    -- 特殊物品
+    trinket_22 = { min = 600, max = 700 }, -- 小饰品22
+    stinger = { min = 12, max = 18 }, -- 刺
+}
+
 -- ============================================================
 -- # 角色对裁缝机的台词
 -- ============================================================
@@ -27,89 +90,38 @@ local REJECT_LINES = {
 }
 
 -- ============================================================
--- # 物品填充时的线轴
--- ============================================================
-local ITEM_XIANZHOU_RANGE = {
-    -- 普通材料
-    silk = { min = 7, max = 10 },
-    beefalowool = { min = 12, max = 16 },
-    steelwool = { min = 85, max = 110 },
-    beardhair = { min = 12, max = 16 },
-    tinybobbin = { min = 24, max = 36 },
-    manrabbit_tail = { min = 20, max = 30 },
-    sewing_tape = { min = 40, max = 50 },
-    cattenball = { min = 120, max = 180 },
-    furtuft = { min = 20, max = 30 },
-
-    -- 帽子类 (拥有耐久度的帽子，大小设置一致，这样后期计算会尝试根据耐久度进行
-    walrushat = { min = 800, max = 800 },
-    winterhat = { min = 100, max = 100 },
-    earmuffshat = { min = 80, max = 80 },
-    monkey_smallhat = { min = 100, max = 100 },
-    beefalohat = { min = 500, max = 500 },
-
-    -- 羽毛类
-    malbatross_feathered_weave = { min = 200, max = 240 },
-    malbatross_feather = { min = 30, max = 40 },
-    goose_feather = { min = 30, max = 40 },
-    feather_canary = { min = 20, max = 30 },
-    feather_catbird = { min = 20, max = 30 },
-    feather_chaffinch = { min = 20, max = 30 },
-    feather_crow = { min = 10, max = 20 },
-    feather_robin = { min = 10, max = 20 },
-    feather_robin_winter = { min = 10, max = 20 },
-
-    -- 植物类
-    cutreeds = { min = 3, max = 5 },
-    palmleaf = { min = 12, max = 16 },
-
-    -- 怪物掉落
-    tentaclespots = { min = 70, max = 80 },
-    slurper_pelt = { min = 30, max = 45 },
-    coontail = { min = 24, max = 36 },
-    snakeskin = { min = 24, max = 36 },
-
-    -- 高级材料
-    voidcloth = { min = 100, max = 120 },
-    fabric = { min = 40, max = 50 },
-
-    -- 特殊物品
-    trinket_22 = { min = 600, max = 700 },
-    stinger = { min = 12, max = 18 },
-}
-
--- ============================================================
--- # 记录装备曹的名称，offsetY绝对修复时特效播放的Y轴偏移位置
+-- # 记录装备槽的名称，offsetY绝对修复时特效播放的Y轴偏移位置
 -- ============================================================
 local SLOT_DATA_LIST = {
-    { key = "BELLY", offsetY = 0.5 },
-    { key = "NECK", offsetY = 0.5 },
-    { key = "BACK", offsetY = 0.5 },
-    { key = "HANDS", offsetY = 0.5 },
-    { key = "HEAD", offsetY = 2.5 },
-    { key = "BODY", offsetY = 0.5 },
-    { key = "SHOES", offsetY = -0.3 },
+    { key = "BELLY", offsetY = 0.5 },   -- 腰部
+    { key = "NECK", offsetY = 0.5 },    -- 颈部
+    { key = "BACK", offsetY = 0.5 },    -- 背部
+    { key = "HANDS", offsetY = 0.5 },   -- 手部
+    { key = "HEAD", offsetY = 2.5 },    -- 头部
+    { key = "BODY", offsetY = 0.5 },    -- 身体
+    { key = "SHOES", offsetY = -0.3 },  -- 鞋子
 }
+
 
 -- ============================================================
 -- # 一些修复时以恢复血量为展示的物品
 -- ============================================================
 local HEALTH_PREFAB_LIST = {
-    daidai = true,
-    bernie_active = true,
-    bernie_big = true,
+    daidai = true,          -- 呆呆（伯尼的姐妹玩偶）
+    bernie_active = true,    -- 激活的伯尼
+    bernie_big = true,       -- 大型伯尼
 }
 
 -- ============================================================
 -- # 虚空套装、亮茄套装、war套装等需要修复套件的装备，指定不同的套件进行修复
 -- ============================================================
 local FORGEREPAIR_LIST = {
-    wagpunkhat = "wagpunkbits_kit",
-    armorwagpunk = "wagpunkbits_kit",
-    armor_voidcloth = "voidcloth_kit",
-    voidclothhat = "voidcloth_kit",
-    lunarplanthat = "lunarplant_kit",
-    armor_lunarplant = "lunarplant_kit",
+    wagpunkhat = "wagpunkbits_kit",         -- 瓦格斯朋克帽 -> 瓦格斯朋克零件套件
+    armorwagpunk = "wagpunkbits_kit",       -- 瓦格斯朋克盔甲 -> 瓦格斯朋克零件套件
+    armor_voidcloth = "voidcloth_kit",      -- 虚空布甲 -> 虚空布套件
+    voidclothhat = "voidcloth_kit",         -- 虚空布帽 -> 虚空布套件
+    lunarplanthat = "lunarplant_kit",       -- 亮茄帽 -> 亮茄套件
+    armor_lunarplant = "lunarplant_kit",    -- 亮茄盔甲 -> 亮茄套件
 }
 
 -- ============================================================
