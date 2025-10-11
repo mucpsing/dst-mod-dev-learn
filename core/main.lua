@@ -286,9 +286,10 @@ end
 -- # 主逻辑
 -- ============================================================
 local function ModCheck()
-    if not DATA or not DATA.ITEM_XIANZHOU_RANGE then Log("加载DATA失败") end
+    if not CPS.DATA or not CPS.DATA then Log("加载DATA失败") end
     if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
     if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
+    if not GLOBAL.TheNet then Log("找不到GLOBAL.TheNet") end
 end
 
 local function Test(inst, modConfig) Log("test1") end
@@ -298,6 +299,8 @@ if CPS then
     DATA = CPS.DATA
 
     local MAX_XIANZHOU = 8000
+
+    CORE.ModCheck = ModCheck
 
     CORE.Loop = function(inst, modConfig, instInfo)
         GetItemToRepair(inst, modConfig, instInfo)

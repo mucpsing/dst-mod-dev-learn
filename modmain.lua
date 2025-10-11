@@ -1,6 +1,17 @@
+--[[
+ * @Author: CPS
+ * @email: 373704015@qq.com
+ * @Date: 2025-10-11 08:19:15.040248
+ * @Last Modified by: CPS
+ * @Last Modified time: 2025-10-11 08:18:56.016080
+ * @Filename modmain.lua
+ * @Description: 缝纫机重置mod入口
+]]
+--
+
 GLOBAL.setmetatable(env, { __index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end })
 -- 要导入的模块
-CPS = { CORE = {}, DATA = {}, DEBUG = false, UTILS={} }
+CPS = { CORE = {}, DATA = {}, DEBUG = false, UTILS = {}, EFFECT = {} }
 
 local MOD_NAME = "cps_test"
 
@@ -48,15 +59,16 @@ local MOD_CONFIG = {
 
 local INST_INFO = {}
 
-
 -- 缝纫机添加修补功能
 AddPrefabPostInit("yotb_sewingmachine", function(inst)
+    -- 仅服务器运行
     if not TheWorld.ismastersim then return end
     inst:RemoveComponent("container") -- 移除原版容器功能
 
     -- 修改名称
-    inst:AddComponent("named")
     inst.xianzhou = 200 --初始233线轴
+    if not inst.components.named then inst:AddComponent("named") end
+    inst.components.named:SetName("缝纫机\n线轴" .. inst.xianzhou)
 
     -- 添加可交互组件（如果尚未添加）旧版或者未来改版兼容
     if not inst.components.inspectable then inst:AddComponent("inspectable") end
@@ -64,40 +76,43 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
     -- 添加被锤子敲销毁
     inst.components.workable:SetOnFinishCallback(CPS.CORE.OnHammered)
 
-    local taskIntervalTime = MOD_CONFIG.REPAIR_INTERVAL_TIME --sec
-    local intervalTask
-    local x, y, z = inst.Transform:GetWorldPosition()
-
-    -- 记录原始位置
-    INST_INFO.x = x
-    INST_INFO.y = y
-    INST_INFO.z = z
-
-    -- 延时执行，多个缝纫机不会那么整齐
-    -- 确保GLOBAL、TheNet等组件加载
-    inst:DoTaskInTime(math.random() * 3, function()
-        -- 周期性任务
-        intervalTask = inst:DoPeriodicTask(taskIntervalTime, function()
-            if inst:HasTag("burnt") then
-                inst.components.named:SetName("缝纫机被烧毁，已经无法使用\n剩余线轴" .. inst.xianzhou)
-                intervalTask:Cancel()
-                return false
-            else
-                CPS.CORE.Loop(inst, MOD_CONFIG, INST_INFO)
-
-                if CPS.DEBUG then
-                    CPS.CORE.ModCheck()
-                    CPS.CORE.Test(inst, MOD_CONFIG, INST_INFO)
-                end
-            end
-        end)
-    end)
-
+    -- 添加交易组件，可以接收物品来填充线轴
     inst:AddComponent("trader")
     inst.components.trader:SetAcceptTest(CPS.CORE.SetAcceptTest)
     inst.components.trader.onaccept = CPS.CORE.OnAccept
     inst.OnSave = CPS.CORE.OnSave
     inst.OnLoad = CPS.CORE.OnLoad
+
+    local intervalTask
+    local taskIntervalTime = MOD_CONFIG.REPAIR_INTERVAL_TIME or 0.33 --监测间隔
+    inst:DoTaskInTime(math.random() * 3, function() --  延时执行，多个缝纫机不会那么整齐
+        -- 记录位置
+        local x, y, z = inst.Transform:GetWorldPosition()
+        INST_INFO.x = x
+        INST_INFO.y = y
+        INST_INFO.z = z
+
+        -- 周期执行
+        intervalTask = inst:DoPeriodicTask(taskIntervalTime, function()
+            -- 被烧毁，终止任务
+            if inst:HasTag("burnt") then
+                inst.components.named:SetName("缝纫机被烧毁，已经无法使用\n剩余线轴" .. inst.xianzhou)
+
+                if intervalTask then
+                    intervalTask:Cancel()
+                    intervalTask = nil
+                end
+
+                return false
+            end
+
+            -- 正常执行任务
+            CPS.CORE.Loop(inst, MOD_CONFIG, INST_INFO)
+
+            -- DEBUG
+            if CPS.DEBUG then CPS.CORE.Test(inst, MOD_CONFIG, INST_INFO) end
+        end)
+    end)
 end)
 
 --排序函数
@@ -142,5 +157,5 @@ c_give("stinger", 40)
 
 c_give("armorwagpunk")
 
-c_spawn("spider")
+c_spawn("spider", 10)
 ]]
