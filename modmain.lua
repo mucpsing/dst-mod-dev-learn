@@ -9,7 +9,11 @@
 ]]
 --
 
-GLOBAL.setmetatable(env, { __index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end })
+GLOBAL.setmetatable(env, {
+    __index = function(t, k)
+        return GLOBAL.rawget(GLOBAL, k)
+    end,
+})
 -- 要导入的模块
 CPS = { CORE = {}, DATA = {}, DEBUG = false, UTILS = {}, EFFECT = {} }
 
@@ -23,7 +27,9 @@ modimport("core/main.lua") -- 核心逻辑
 AddSimPostInit(function()
     -- 通过 GLOBAL 表访问 TheWorld，并检查是否在主世界
     if GLOBAL.TheWorld and GLOBAL.TheWorld.ismastersim then
-        if not GLOBAL.TheWorld.ismastersim then return false end
+        if not GLOBAL.TheWorld.ismastersim then
+            return false
+        end
 
         -- 需要实时监控的模块
         local WATCH_FILE_LIST = { "modinfo.lua", "modmain.lua", "core/main.lua", "core/const.lua" }
@@ -62,16 +68,22 @@ local INST_INFO = {}
 -- 缝纫机添加修补功能
 AddPrefabPostInit("yotb_sewingmachine", function(inst)
     -- 仅服务器运行
-    if not TheWorld.ismastersim then return end
+    if not TheWorld.ismastersim then
+        return
+    end
     inst:RemoveComponent("container") -- 移除原版容器功能
 
     -- 修改名称
     inst.xianzhou = 200 --初始233线轴
-    if not inst.components.named then inst:AddComponent("named") end
+    if not inst.components.named then
+        inst:AddComponent("named")
+    end
     inst.components.named:SetName("缝纫机\n线轴" .. inst.xianzhou)
 
     -- 添加可交互组件（如果尚未添加）旧版或者未来改版兼容
-    if not inst.components.inspectable then inst:AddComponent("inspectable") end
+    if not inst.components.inspectable then
+        inst:AddComponent("inspectable")
+    end
 
     -- 添加被锤子敲销毁
     inst.components.workable:SetOnFinishCallback(CPS.CORE.OnHammered)
@@ -110,7 +122,9 @@ AddPrefabPostInit("yotb_sewingmachine", function(inst)
             CPS.CORE.Loop(inst, MOD_CONFIG, INST_INFO)
 
             -- DEBUG
-            if CPS.DEBUG then CPS.CORE.Test(inst, MOD_CONFIG, INST_INFO) end
+            if CPS.DEBUG then
+                CPS.CORE.Test(inst, MOD_CONFIG, INST_INFO)
+            end
         end)
     end)
 end)
@@ -145,10 +159,14 @@ ChangeSortKey("sewingmachine", "sewing_kit", "CLOTHING", true)
 
 -- 在支持填充的物品上加入对应的xianzhou价值
 AddPrefabPostInitAny(function(inst)
-    if not TheWorld.ismastersim then return inst end
+    if not TheWorld.ismastersim then
+        return inst
+    end
 
     for itemPrefab, _ in pairs(CPS.DATA.ITEM_XIANZHOU_RANGE) do
-        if inst.prefab == itemPrefab and not inst.components.tradable then inst:AddComponent("tradable") end
+        if inst.prefab == itemPrefab and not inst.components.tradable then
+            inst:AddComponent("tradable")
+        end
     end
 end)
 

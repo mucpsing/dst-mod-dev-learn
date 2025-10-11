@@ -6,7 +6,8 @@
  * @Last Modified time: 2025-10-11 08:18:56.016080
  * @Filename main.lua
  * @Description: 缝纫机核心逻辑
-]] --
+]]
+--
 -- ============================================================
 -- # 特效管理
 -- ============================================================
@@ -45,7 +46,9 @@ local function PlayEffect(inst, item, offsetY)
     local x, y, z = item.Transform:GetWorldPosition()
     local fxfire = SpawnPrefab("attackfx_handpillow_steelwool")
 
-    if offsetY then y = y + offsetY end
+    if offsetY then
+        y = y + offsetY
+    end
 
     fxfire.Transform:SetPosition(x, y, z)
     fxfire.Transform:SetScale(0.5, 0.5, 0.5)
@@ -85,30 +88,40 @@ end
 -- ============================================================
 local function CanRepairHealth(item)
     -- 白名单判断
-    if not CPS.DATA.HEALTH_PREFAB_LIST[item.prefab] then return false end
+    if not CPS.DATA.HEALTH_PREFAB_LIST[item.prefab] then
+        return false
+    end
 
     -- 存在health组件
     if item.components.health and item.components.health.DoDelta then
-        if not item.components.health:IsDead() then return true end
+        if not item.components.health:IsDead() then
+            return true
+        end
     end
 
     return false
 end
 
 local function IsArmor(item)
-    if item.components.armor and item.components.armor.Repair then return true end
+    if item.components.armor and item.components.armor.Repair then
+        return true
+    end
 
     return false
 end
 
 local function IsCanFixByFuel(item)
-    if item.components.fueled and item.components.fueled.fueltype == FUELTYPE.USAGE and item.components.fueled.DoDelta then return true end
+    if item.components.fueled and item.components.fueled.fueltype == FUELTYPE.USAGE and item.components.fueled.DoDelta then
+        return true
+    end
 
     return false
 end
 
 local function IsContainer(item)
-    if item and item.components and item.components.container then return true end
+    if item and item.components and item.components.container then
+        return true
+    end
 
     return false
 end
@@ -131,7 +144,9 @@ end
 
 -- 修复装备
 local function TryRepair(inst, thePlayer, item, offsetY, modConfig)
-    if not item then return 0 end
+    if not item then
+        return 0
+    end
 
     local RepairCount = 0
     local showName = item.GetDisplayName and item:GetDisplayName() or item.prefab
@@ -198,14 +213,18 @@ end
 
 local function RepairInContainer(inst, thePlayer, item, offsetY, modConfig)
     local container = item.components.container
-    if not container or not container.GetNumSlots then return 0 end
+    if not container or not container.GetNumSlots then
+        return 0
+    end
 
     local RepairCount = 0
     for i = 1, container:GetNumSlots() do
         local eachItem = container:GetItemInSlot(i)
 
         -- eachItem可能是空的
-        if not eachItem then return RepairCount end
+        if not eachItem then
+            return RepairCount
+        end
 
         RepairCount = TryRepair(inst, thePlayer, eachItem, offsetY, modConfig) + RepairCount
     end
@@ -215,20 +234,28 @@ end
 
 local function CheckItemCanRepair(item)
     -- 确保实体有效且有prefab名称
-    if not item or not item.prefab then return false end
+    if not item or not item.prefab then
+        return false
+    end
 
     -- 是否实体
-    if not item.components.inventory then return false end
+    if not item.components.inventory then
+        return false
+    end
 
     -- 是否被燃烧过
-    if item.HasTag and item:HasTag("burnt") then return false end
+    if item.HasTag and item:HasTag("burnt") then
+        return false
+    end
 
     return true
 end
 
 -- 主函数：获取并打印第一个玩家附近的所有实体
 local function GetItemToRepair(inst, modConfig, instInfo)
-    if inst.xianzhou <= 0 then return end
+    if inst.xianzhou <= 0 then
+        return
+    end
 
     -- 1. 设置搜索范围
     local search_range = modConfig.REPAIR_RANGE and 3.33 * modConfig.REPAIR_RANGE or 1
@@ -272,7 +299,9 @@ local function GetItemToRepair(inst, modConfig, instInfo)
             -- 物品栏
             for _slot, slotItem in pairs(target.components.inventory.itemslots) do
                 if slotItem and slotItem:IsValid() then
-                    if slotItem and slotItem.prefab then RepairCount = TryRepair(inst, thePlayer, slotItem, BodyOffsetY, modConfig) + RepairCount end
+                    if slotItem and slotItem.prefab then
+                        RepairCount = TryRepair(inst, thePlayer, slotItem, BodyOffsetY, modConfig) + RepairCount
+                    end
                 end
             end
         else
@@ -286,13 +315,23 @@ end
 -- # 主逻辑
 -- ============================================================
 local function ModCheck()
-    if not CPS.DATA or not CPS.DATA then Log("加载DATA失败") end
-    if not GLOBAL.ThePlayer then Log("找不到GLOBAL.ThePlayer") end
-    if not GLOBAL.AllPlayers then Log("找不到GLOBAL.AllPlayers") end
-    if not GLOBAL.TheNet then Log("找不到GLOBAL.TheNet") end
+    if not CPS.DATA or not CPS.DATA then
+        Log("加载DATA失败")
+    end
+    if not GLOBAL.ThePlayer then
+        Log("找不到GLOBAL.ThePlayer")
+    end
+    if not GLOBAL.AllPlayers then
+        Log("找不到GLOBAL.AllPlayers")
+    end
+    if not GLOBAL.TheNet then
+        Log("找不到GLOBAL.TheNet")
+    end
 end
 
-local function Test(inst, modConfig) Log("test1") end
+local function Test(inst, modConfig)
+    Log("test1")
+end
 
 if CPS then
     CORE = CPS.CORE
@@ -309,9 +348,13 @@ if CPS then
     end
 
     CORE.OnHammered = function(inst, worker)
-        if inst.components.burnable ~= nil and inst.components.burnable:IsBurning() then inst.components.burnable:Extinguish() end
+        if inst.components.burnable ~= nil and inst.components.burnable:IsBurning() then
+            inst.components.burnable:Extinguish()
+        end
 
-        if inst.components.container ~= nil then inst.components.container:DropEverything() end
+        if inst.components.container ~= nil then
+            inst.components.container:DropEverything()
+        end
 
         inst.components.lootdropper:SpawnLootPrefab("goldnugget")
         inst.components.lootdropper:SpawnLootPrefab("silk")
@@ -361,7 +404,9 @@ if CPS then
             end
 
             -- 线轴是否能合法的添加已经在SetAcceptTest函数中进行判断，这里的现在必然需要添加到缝纫机
-            if inst.xianzhou >= MAX_XIANZHOU then return false end
+            if inst.xianzhou >= MAX_XIANZHOU then
+                return false
+            end
 
             UpdateXianzhou(inst, need_xianzhou)
 
@@ -392,14 +437,22 @@ if CPS then
     end
 
     CORE.OnSave = function(inst, data)
-        if inst.xianzhou then data.xianzhou = inst.xianzhou end
-        if inst:HasTag("burnt") or (inst.components.burnable ~= nil and inst.components.burnable:IsBurning()) then data.burnt = true end
+        if inst.xianzhou then
+            data.xianzhou = inst.xianzhou
+        end
+        if inst:HasTag("burnt") or (inst.components.burnable ~= nil and inst.components.burnable:IsBurning()) then
+            data.burnt = true
+        end
     end
 
     CORE.OnLoad = function(inst, data)
         if data ~= nil then
-            if data.xianzhou and inst.xianzhou then inst.xianzhou = data.xianzhou end
-            if data.burnt then inst.components.burnable.onburnt(inst) end
+            if data.xianzhou and inst.xianzhou then
+                inst.xianzhou = data.xianzhou
+            end
+            if data.burnt then
+                inst.components.burnable.onburnt(inst)
+            end
         end
     end
 end
